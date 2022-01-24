@@ -7,7 +7,7 @@ var SqueezePlayer = require('./squeezeplayer');
 // enable debugging during development.  It just appends \n and writes to the stream.
 net.Stream.prototype.writeln = function(s) {
     // Uncomment the next line to see data as it's written to telnet
-    // console.log("> " + s);
+    //console.log("> " + s);
     this.write(s + "\n");
 }
 
@@ -29,6 +29,18 @@ LogitechMediaServer.prototype.start = function(username, password) {
     
     // Listen on self.port to self.address
     self.telnet = net.createConnection(self.port, self.address);
+	
+	self.telnet.on("error", function(error){
+		self.telnet.destroy();
+		console.log("Error connecting to LMS on ",self.port,self.address,"\nDetail : ",error," :: Retrying in 5s." );
+		self.emit("lms_not_found");
+		setTimeout( ()=>{
+			self.start(username, password);
+		}, 5000 )
+		return;
+	})
+	
+	
     self.line_parser = new LineParser(self.telnet);
 
     // The LineParser just emits a "line" event for each line of data
@@ -117,7 +129,7 @@ LogitechMediaServer.prototype.registerPlayer = function(pnum, pid) {
     self.players[pid]        = new SqueezePlayer(self.telnet);
     self.players[pid].id     = pid;
     self.players[pid].index  = pnum;
-
+	self.players[pid].statusSubscribe();
     // Check whether this is the last player we're waiting for, if so emit "registration_finished"
     if (Object.keys(self.players).length == self.numPlayers) {
         self.emit("registration_finished");
@@ -153,6 +165,7 @@ LineParser.prototype.parse = function(data) {
 LogitechMediaServer.prototype.handleLine = function(buffer) {
     var self = this;
     var handled = false;
+	//console.log(buffer.toString());
 
     // Guts of this function is pretty much a list of commands and callbacks.
     // Could definitely be made more efficient, or a bit DRYer, but it's just a bunch of string comparisons.
@@ -193,6 +206,7 @@ LogitechMediaServer.prototype.handleLine = function(buffer) {
     // Just handle the "listen" response (LMS should just respond with 'listen 1' at the beginning)
     if (self.handle(buffer, "listen", function() {})) { handled = true };
 
+	
     // ~~~~~~~~~~~~~~ keywords below here are those which are associated with an individual player ~~~~~~~~~~~~~~~~~~
 
     if (self.handle_with_id(buffer, "signalstrength", function(player, params, b) {
@@ -213,9 +227,14 @@ LogitechMediaServer.prototype.handleLine = function(buffer) {
     if (self.handle_with_id(buffer, "name", function(player, params, b) {
         player.setProperty("name", params);
     })) { handled = true };
+	
 
     if (self.handle_with_id(buffer, "current_title", function(player, params, b) {
         player.setProperty("current_title", params);
+    })) { handled = true };
+	
+    if (self.handle_with_id(buffer, "time", function(player, params, b) {
+        player.setProperty("time", params);
     })) { handled = true };
 
     if (self.handle_with_id(buffer, "mode", function(player, params, b) {
