@@ -18,7 +18,7 @@ lms.on("registration_finished", ()=>{
 	let mac = get_mac_squeeze(players),
 	lms_player;
 	
-	if(mac){
+	if(!mac){
 		console.log("Squeezelite not found on this LMS server... Nothing will happen");
 	}
 	else{ console.log("Squeezelite instance found running on "+mac) }
