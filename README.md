@@ -15,14 +15,14 @@ lms = new LMS('127.0.0.1',9090);
 lms.on("registration_finished", ()=>{
 	
 	let players = Object.keys(lms.players),
-	let local_client = get_mac_squeeze(players),
+	let mac = get_mac_squeeze(players),
 	lms_player;
 	
 	if(mac){
 		console.log("Squeezelite not found on this LMS server... Nothing will happen");
 	}
-	else{ console.log("Squeezelite instance found running on "+this.mac) }
-	lms_player = lms.players[this.mac];
+	else{ console.log("Squeezelite instance found running on "+mac) }
+	lms_player = lms.players[mac];
 	
 	// then hook to the regular event framework 
 	lms_player.on("time", (t)=> { 
